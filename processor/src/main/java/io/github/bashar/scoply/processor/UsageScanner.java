@@ -47,7 +47,7 @@ public class UsageScanner extends ElementScanner8<Void, Void> {
             types.add(e.getReturnType().toString());
         }
 
-        System.out.println(" enclosed in " + e + "=" + e.getEnclosedElements());
+//        System.out.println(" enclosed in " + e + "=" + e.getEnclosedElements());
 
 //        //2-methods scanner
          // doesn't provide fully qualified names.

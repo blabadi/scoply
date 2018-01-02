@@ -1,18 +1,15 @@
 package com.sem;
 
-//import com.some.test.Classy1;
-//import com.some.test.ClassyStar;
+import com.sem.internal.Classy1;
+//import com.sem.internal.ClassyStar;
 
-import io.github.bashar.scoply.processor.Scoped;
-
-@Scoped(pkg="com.sem")
 public class Classy2 {
-//    Classy1 classy1 = new Classy1();
-//
-//    public void test() {
-//        //wont be detected due to default scanner limitations
+    Classy1 classy1 = new Classy1();
+
+    public void test() {
+        //next line wont be inspected due to default scanner limitations
 //        ClassyStar cs = new ClassyStar();
-//    }
+    }
 
     public void test2() {
         int x = 1;

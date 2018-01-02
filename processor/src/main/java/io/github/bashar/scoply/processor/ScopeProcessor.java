@@ -35,7 +35,7 @@ public class ScopeProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         Messager messager = processingEnv.getMessager();
-        System.out.println(roundEnv.getRootElements());
+        System.out.println("compiling:"  + roundEnv.getRootElements());
         for (TypeElement typeElement : annotations) {
             Map<String, Element> annotatedClasses = roundEnv.getElementsAnnotatedWith(typeElement).stream().collect(Collectors.toMap(e-> e.toString(), Function.identity()));
             System.out.println(" ===== annotated classes : " + annotatedClasses);
@@ -43,7 +43,7 @@ public class ScopeProcessor extends AbstractProcessor {
                 //1- semantics scanner
                 UsageScanner scanner = new UsageScanner();
                 scanner.scan(e, null);
-                System.out.println(" ===== scanning : " + e.toString());
+                System.out.println(" ===> scanning : " + e.toString());
                 Set<String> usedTypes = scanner.getUsedTypes();
 
                 //2- import statements scanner
@@ -55,25 +55,32 @@ public class ScopeProcessor extends AbstractProcessor {
                 
                 System.out.println(" ===== imported classes : " + usedTypes);
                 for (String className : usedTypes) {
-                    try {
-                        Class<?> usedClass = Class.forName(className);
-                        if (usedClass.isAnnotationPresent(Scoped.class)) {
-                            System.out.println(" ===== class : " + className + " annotated with Scoped");
-                            Scoped annotation = usedClass.getAnnotation(Scoped.class);
-                            String pkg = annotation.pkg();
-                            //if public package continue as there is no scope comparision needed
-                            if (pkg.equalsIgnoreCase("*")) {
-                                continue;
-                            }
-                            System.out.println(" ===== scope : " + pkg);
-                            String importedInPkg = e.toString().substring(0, e.toString().indexOf(e.getSimpleName().toString())-1);
-                            System.out.println(" ===== importing class pkg : " + importedInPkg);
-                            if (!importedInPkg.contains(pkg)) {
-                                messager.printMessage(Diagnostic.Kind.ERROR, e + " has illegal import for : " + className.toString());
-                            }
+                    Scoped annotation = null;
+                    if (annotatedClasses.containsKey(className)) {
+                        annotation = annotatedClasses.get(className).getAnnotation(Scoped.class);
+                    } else {
+                        try {
+                            Class<?> usedClass = Class.forName(className);
+                            if (usedClass.isAnnotationPresent(Scoped.class))
+                                annotation = usedClass.getAnnotation(Scoped.class);
+                        } catch (ClassNotFoundException e1) {
+                            System.out.println("info: class: " + className + " was not found.");
                         }
-                    } catch (ClassNotFoundException e1) {
-                        e1.printStackTrace();
+                    }
+                    if (annotation != null) {
+                        System.out.println(" ===== class : " + className + " annotated with Scoped");
+
+                        String pkg = annotation.pkg();
+                        //if public package continue as there is no scope comparision needed
+                        if (pkg.equalsIgnoreCase("*")) {
+                            continue;
+                        }
+                        System.out.println(" ===== scope : " + pkg);
+                        String importedInPkg = e.toString().substring(0, e.toString().indexOf(e.getSimpleName().toString())-1);
+                        System.out.println(" ===== importing class pkg : " + importedInPkg);
+                        if (!importedInPkg.contains(pkg)) {
+                            messager.printMessage(Diagnostic.Kind.ERROR, e + " has illegal import for : " + className.toString());
+                        }
                     }
                 }
             }
