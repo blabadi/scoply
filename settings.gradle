@@ -1,0 +1,5 @@
+rootProject.name = 'scoply'
+include 'scoplyTest'
+include 'processor'
+include 'scoplyTest2'
+
