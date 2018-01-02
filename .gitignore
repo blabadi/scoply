@@ -1,5 +1,7 @@
-
+*/*.iml
 */out
 */build
 */.gradle
 */.idea
+*.class
+*/DS_Store

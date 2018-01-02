@@ -1,7 +1,9 @@
 package com.some.test;
 
 
-//@Scoped(pkg="com.some")
+import io.github.bashar.scoply.processor.Scoped;
+
+@Scoped(pkg="com.some")
 public class Classy1 {
     public String name = "Classy1";
 }

@@ -31,7 +31,6 @@ public class ScopeProcessor extends AbstractProcessor {
         super.init(processingEnv);
         trees = Trees.instance(processingEnv);
     }
-
     
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -56,21 +55,25 @@ public class ScopeProcessor extends AbstractProcessor {
                 
                 System.out.println(" ===== imported classes : " + usedTypes);
                 for (String className : usedTypes) {
-                    if (annotatedClasses.containsKey(className)) {
-                        System.out.println(" ===== class : " + className + " annotated with Scoped");
-                        Element classEle = annotatedClasses.get(className);
-                        Scoped annotation = classEle.getAnnotation(Scoped.class);
-                        String pkg = annotation.pkg();
-                        //if public package continue as there is no scope comparision needed
-                        if (pkg.equalsIgnoreCase("*")) {
-                            continue;
+                    try {
+                        Class<?> usedClass = Class.forName(className);
+                        if (usedClass.isAnnotationPresent(Scoped.class)) {
+                            System.out.println(" ===== class : " + className + " annotated with Scoped");
+                            Scoped annotation = usedClass.getAnnotation(Scoped.class);
+                            String pkg = annotation.pkg();
+                            //if public package continue as there is no scope comparision needed
+                            if (pkg.equalsIgnoreCase("*")) {
+                                continue;
+                            }
+                            System.out.println(" ===== scope : " + pkg);
+                            String importedInPkg = e.toString().substring(0, e.toString().indexOf(e.getSimpleName().toString())-1);
+                            System.out.println(" ===== importing class pkg : " + importedInPkg);
+                            if (!importedInPkg.contains(pkg)) {
+                                messager.printMessage(Diagnostic.Kind.ERROR, e + " has illegal import for : " + className.toString());
+                            }
                         }
-                        System.out.println(" ===== scope : " + pkg);
-                        String importedInPkg = e.toString().substring(0, e.toString().indexOf(e.getSimpleName().toString())-1);
-                        System.out.println(" ===== importing class pkg : " + importedInPkg);
-                        if (!importedInPkg.contains(pkg)) {
-                            messager.printMessage(Diagnostic.Kind.ERROR, e + " has illegal import for : " + className.toString());
-                        }
+                    } catch (ClassNotFoundException e1) {
+                        e1.printStackTrace();
                     }
                 }
             }

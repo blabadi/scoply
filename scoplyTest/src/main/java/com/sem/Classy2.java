@@ -3,7 +3,9 @@ package com.sem;
 //import com.some.test.Classy1;
 //import com.some.test.ClassyStar;
 
-//@Scoped(pkg="com.sem")
+import io.github.bashar.scoply.processor.Scoped;
+
+@Scoped(pkg="com.sem")
 public class Classy2 {
 //    Classy1 classy1 = new Classy1();
 //
