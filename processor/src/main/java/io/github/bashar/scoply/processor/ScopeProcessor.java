@@ -28,6 +28,7 @@ public class ScopeProcessor extends AbstractProcessor {
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
+        System.out.println("init called..");
         super.init(processingEnv);
         trees = Trees.instance(processingEnv);
     }
@@ -35,15 +36,17 @@ public class ScopeProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         Messager messager = processingEnv.getMessager();
+        if (roundEnv.getRootElements().isEmpty()) return false;
         System.out.println("compiling:"  + roundEnv.getRootElements());
-        for (TypeElement typeElement : annotations) {
-            Map<String, Element> annotatedClasses = roundEnv.getElementsAnnotatedWith(typeElement).stream().collect(Collectors.toMap(e-> e.toString(), Function.identity()));
-            System.out.println(" ===== annotated classes : " + annotatedClasses);
+//        for (TypeElement typeElement : annotations) {
+            Map<String, Element> annotatedClasses = roundEnv.getElementsAnnotatedWith(Scoped.class).stream().collect(Collectors.toMap(e-> e.toString(), Function.identity()));
+            System.out.println(" ===== found @Scoped classes  this round: " + annotatedClasses);
+           
             for (Element e : roundEnv.getRootElements()) {
+                 System.out.println(" ===> scanning : " + e.toString());
                 //1- semantics scanner
                 UsageScanner scanner = new UsageScanner();
                 scanner.scan(e, null);
-                System.out.println(" ===> scanning : " + e.toString());
                 Set<String> usedTypes = scanner.getUsedTypes();
 
                 //2- import statements scanner
@@ -84,13 +87,14 @@ public class ScopeProcessor extends AbstractProcessor {
                     }
                 }
             }
-        }
+//        }
         return false;
     }
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
-        return new HashSet<>(Arrays.asList(Scoped.class.getName()));
+        //make the processor process every class
+        return new HashSet<>(Arrays.asList("*"));
     }
 }
 
