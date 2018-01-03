@@ -12,6 +12,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.ElementScanner8;
 import javax.tools.*;
 import java.io.File;
 import java.io.IOException;
@@ -32,61 +33,71 @@ public class ScopeProcessor extends AbstractProcessor {
         super.init(processingEnv);
         trees = Trees.instance(processingEnv);
     }
-    
+
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         Messager messager = processingEnv.getMessager();
         if (roundEnv.getRootElements().isEmpty()) return false;
         System.out.println("compiling:"  + roundEnv.getRootElements());
-//        for (TypeElement typeElement : annotations) {
-            Map<String, Element> annotatedClasses = roundEnv.getElementsAnnotatedWith(Scoped.class).stream().collect(Collectors.toMap(e-> e.toString(), Function.identity()));
-            System.out.println(" ===== found @Scoped classes  this round: " + annotatedClasses);
-           
-            for (Element e : roundEnv.getRootElements()) {
-                 System.out.println(" ===> scanning : " + e.toString());
-                //1- semantics scanner
-                UsageScanner scanner = new UsageScanner();
-                scanner.scan(e, null);
-                Set<String> usedTypes = scanner.getUsedTypes();
+        Map<String, Element> annotatedClasses = roundEnv.getElementsAnnotatedWith(Scoped.class).stream().collect(Collectors.toMap(e-> e.toString(), Function.identity()));
+        System.out.println(" ===== found @Scoped classes  this round: " + annotatedClasses);
 
-                //2- import statements scanner
-                ImportScanner is  = new ImportScanner();
-                is.scan(this.trees.getPath(e).getCompilationUnit(), null) ;
+        for (Element e : roundEnv.getRootElements()) {
+            System.out.println("==> enclosing is " + e.getEnclosingElement());
+            System.out.println(" ===> scanning : " + e.toString());
+            //1- semantics scanner
+            UsageScanner scanner = new UsageScanner();
+            scanner.scan(e, null);
+            Set<String> usedTypes = scanner.getUsedTypes();
+            //2- import statements scanner
+            ImportScanner is  = new ImportScanner();
+            is.scan(this.trees.getPath(e).getCompilationUnit(), null) ;
 
-                //merge outputs
-                usedTypes.addAll(is.imports);
-                
-                System.out.println(" ===== imported classes : " + usedTypes);
-                for (String className : usedTypes) {
-                    Scoped annotation = null;
-                    if (annotatedClasses.containsKey(className)) {
-                        annotation = annotatedClasses.get(className).getAnnotation(Scoped.class);
-                    } else {
-                        try {
-                            Class<?> usedClass = Class.forName(className);
-                            if (usedClass.isAnnotationPresent(Scoped.class))
-                                annotation = usedClass.getAnnotation(Scoped.class);
-                        } catch (ClassNotFoundException e1) {
-                            System.out.println("info: class: " + className + " was not found.");
+
+            //merge outputs
+            usedTypes.addAll(is.imports);
+
+            System.out.println(" ===== imported classes : " + usedTypes);
+            for (String className : usedTypes) {
+                Scoped annotation = null;
+                Element classElement = findElementForClassByName(className, roundEnv.getRootElements());
+                if (annotatedClasses.containsKey(className)) {
+                    annotation = annotatedClasses.get(className).getAnnotation(Scoped.class);
+                    System.out.println(" ===== element : " + className + " annotated with Scoped");
+                } else  if (classElement != null && classElement.getEnclosingElement().getAnnotation(Scoped.class) != null) {
+                    annotation = classElement.getEnclosingElement().getAnnotation(Scoped.class);
+                    System.out.println(" ===== element : " + className + " package is annotated with Scoped");
+                } else {
+                    try {
+                        Class<?> usedClass = Class.forName(className);
+                        if (usedClass.isAnnotationPresent(Scoped.class) ) {
+                            annotation = usedClass.getAnnotation(Scoped.class);
+                            System.out.println(" ===== class : " + className + " annotated with Scoped");
                         }
+                        else if (usedClass.getPackage().isAnnotationPresent(Scoped.class)) {
+                            System.out.println(" ===== class : " + className + " package is annotated with Scoped");
+                            annotation =  usedClass.getPackage().getAnnotation(Scoped.class);
+                        }
+                    } catch (ClassNotFoundException e1) {
+                        System.out.println("info: class: " + className + " was not found.");
                     }
-                    if (annotation != null) {
-                        System.out.println(" ===== class : " + className + " annotated with Scoped");
-
-                        String pkg = annotation.pkg();
-                        //if public package continue as there is no scope comparision needed
-                        if (pkg.equalsIgnoreCase("*")) {
-                            continue;
-                        }
-                        System.out.println(" ===== scope : " + pkg);
-                        String importedInPkg = e.toString().substring(0, e.toString().indexOf(e.getSimpleName().toString())-1);
-                        System.out.println(" ===== importing class pkg : " + importedInPkg);
-                        if (!importedInPkg.contains(pkg)) {
-                            messager.printMessage(Diagnostic.Kind.ERROR, e + " has illegal import for : " + className.toString());
-                        }
+                }
+                if (annotation != null) {
+                    
+                    String pkg = annotation.pkg();
+                    //if public package continue as there is no scope comparision needed
+                    if (pkg.equalsIgnoreCase("*")) {
+                        continue;
+                    }
+                    System.out.println(" ===== scope : " + pkg);
+                    String importedInPkg = e.toString().substring(0, e.toString().indexOf(e.getSimpleName().toString())-1);
+                    System.out.println(" ===== importing class pkg : " + importedInPkg);
+                    if (!importedInPkg.contains(pkg)) {
+                        messager.printMessage(Diagnostic.Kind.ERROR, e + " has illegal import for : " + className.toString());
                     }
                 }
             }
+        }
 //        }
         return false;
     }
@@ -96,6 +107,16 @@ public class ScopeProcessor extends AbstractProcessor {
         //make the processor process every class
         return new HashSet<>(Arrays.asList("*"));
     }
+
+    private Element findElementForClassByName(String className, Set<? extends  Element>  elements) {
+        for (Element e: elements) {
+            if (e.toString().equals(className)) {
+                return e;
+            }
+        }
+        return null;
+    }
+
 }
 
 
@@ -121,13 +142,13 @@ class MethodScanner extends TreePathScanner<List<MethodTree>, Trees> {
         this.methodTrees.add(methodTree);
         return super.visitMethod(methodTree, trees);
     }
-    
+
 }
 
 //scans the import statements to find types used by a class
 class ImportScanner extends TreePathScanner<List<ImportTree>, Void> {
     public  Set<String> imports = new HashSet<>();
-    
+
     @Override
     public List<ImportTree> visitImport(ImportTree node, Void v) {
         imports.add(node.getQualifiedIdentifier().toString());

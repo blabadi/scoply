@@ -5,7 +5,7 @@ import com.sem.internal.ClassyStar;
 
 public class Classical {
     Classy2 classy2;
-    public ClassyStar classy2(){
-        return new ClassyStar();
+    public void classy2(){
+        new ClassyStar();
     }
 }
